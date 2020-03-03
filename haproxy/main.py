@@ -65,12 +65,6 @@ def main():
 
     while True:
         time.sleep(5)
-        if Haproxy.cls_process:
-            if is_process_running(Haproxy.cls_process):
-                continue
-            Haproxy.cls_cfg = None
-            add_haproxy_run_task("haproxy %s died , restart" % Haproxy.cls_process.pid)
-
 
 def is_process_running(p):
     try:
@@ -78,7 +72,6 @@ def is_process_running(p):
         return True
     except OSError:
         return False
-
 
 def check_running_mode(container_uri, service_uri, api_auth):
     mode, msg = None, ""

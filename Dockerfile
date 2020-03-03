@@ -1,12 +1,15 @@
-FROM alpine:3.6
+FROM haproxy:2.1-alpine
 MAINTAINER Feng Honglin <hfeng@tutum.co>
+
+RUN apk update && \
+    apk --no-cache add socat tini py-pip build-base python-dev ca-certificates
+
+ADD ./reload.sh /reload.sh
+RUN chmod +x /reload.sh
 
 COPY . /haproxy-src
 
-RUN apk update && \
-    apk --no-cache add tini haproxy py-pip build-base python-dev ca-certificates && \
-    cp /haproxy-src/reload.sh /reload.sh && \
-    cd /haproxy-src && \
+RUN cd /haproxy-src && \
     pip install -r requirements.txt && \
     pip install . && \
     apk del build-base python-dev && \
@@ -27,4 +30,7 @@ ENV RSYSLOG_DESTINATION=127.0.0.1 \
 
 EXPOSE 80 443 1936
 ENTRYPOINT ["/sbin/tini", "--"]
+
+RUN addgroup -S haproxy && adduser -S haproxy -G haproxy -D
+
 CMD ["dockercloud-haproxy"]

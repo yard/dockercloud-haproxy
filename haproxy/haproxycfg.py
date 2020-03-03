@@ -178,10 +178,10 @@ class Haproxy(object):
             logger.info("HAProxy configuration:\n%s" % cfg)
             Haproxy.cls_cfg = cfg
             if save_to_file(HAPROXY_CONFIG_FILE, cfg):
-                Haproxy.cls_process = UpdateHelper.run_reload(Haproxy.cls_process)
+                UpdateHelper.run_reload()
         elif self.ssl_updated:
             logger.info("SSL certificates have been changed")
-            Haproxy.cls_process = UpdateHelper.run_reload(Haproxy.cls_process)
+            UpdateHelper.run_reload()
         else:
             logger.info("HAProxy configuration remains unchanged")
         logger.info("===========END===========")
@@ -244,7 +244,8 @@ class Haproxy(object):
                       "user %s" % HAPROXY_USER,
                       "group %s" % HAPROXY_GROUP,
                       "daemon",
-                      "stats socket /var/run/haproxy.stats level admin"]
+                      "server-state-file /var/run/haproxy.servers",
+                      "stats socket /var/run/haproxy.stats mode 600 expose-fd listeners level admin"]
 
         if NBPROC > 1:
             statements.append("nbproc %s" % NBPROC)
@@ -287,6 +288,7 @@ class Haproxy(object):
     def _config_defaults_section():
         cfg = OrderedDict()
         statements = ["balance %s" % BALANCE,
+                      "load-server-state-from-file global",
                       "log global",
                       "mode %s" % MODE]
 

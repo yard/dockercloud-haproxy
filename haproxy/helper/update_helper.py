@@ -20,45 +20,14 @@ logger = logging.getLogger("haproxy")
 #       existing configuration will be invalid, and any connections still using it will 
 #       have invalid backends.
 #
-def run_reload(old_process, timeout=int(RELOAD_TIMEOUT)):
-    if old_process:
-        # Config check
-        p = subprocess.Popen(HAPROXY_CONFIG_CHECK_COMMAND, stdin=subprocess.PIPE, stdout=subprocess.PIPE,
-                             stderr=subprocess.PIPE)
-        output, err = p.communicate()
-        if p.returncode != 0:
-            logger.error("Config check failed. NOT reloading haproxy: %s - %s" % (err, output))
-            return old_process
-        else:
-            logger.info("Config check passed")
+def run_reload(timeout=int(RELOAD_TIMEOUT)):
+    p = subprocess.Popen("/reload.sh", shell=True, executable="/bin/sh")
+    output, err = p.communicate()
 
-        # Reload Haproxy
-        logger.info("Reloading HAProxy")
-        if timeout == -1:
-            flag = "-st"
-            logger.info("Restarting HAProxy immediately")
-        else:
-            flag = "-sf"
-            logger.info("Restarting HAProxy gracefully")
-
-        new_process = subprocess.Popen(HAPROXY_RUN_COMMAND + [flag, str(old_process.pid)])
-        logger.info("HAProxy is reloading (new PID: %s)", str(new_process.pid))
-
-        thread = threading.Thread(target=wait_pid, args=[old_process, timeout])
-        thread.start()
-
-        # Block only if we have a timeout.  If we don't it could take forever, and so
-        # returning immediately maintains the original behaviour of no timeout.
-        if timeout > 0:
-            thread.join()
-
+    if p.returncode != 0:
+        logger.error("Reload fails: %s - %s" % (err, output))
     else:
-        # Launch haproxy
-        logger.info("Launching HAProxy")
-        new_process = subprocess.Popen(HAPROXY_RUN_COMMAND)
-        logger.info("HAProxy has been launched(PID: %s)", str(new_process.pid))
-
-    return new_process
+        logger.info("Reload complete!")
 
 
 def wait_pid(process, timeout):
