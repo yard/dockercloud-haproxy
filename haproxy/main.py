@@ -9,7 +9,7 @@ import signal
 import gevent
 import time
 import dockercloud
-from compose.cli.docker_client import docker_client
+from docker import Client
 from gevent import queue
 
 import config
@@ -87,10 +87,7 @@ def check_running_mode(container_uri, service_uri, api_auth):
     else:
         reason = ""
         try:
-            try:
-                docker = docker_client()
-            except:
-                docker = docker_client(os.environ)
+            docker = Client(base_url = 'unix:///var/run/docker.sock')
             docker.ping()
         except Exception as e:
             reason = "unable to connect to docker daemon %s" % e

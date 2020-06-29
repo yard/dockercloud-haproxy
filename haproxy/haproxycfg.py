@@ -4,6 +4,7 @@ from collections import OrderedDict
 
 import gevent
 from compose.cli.docker_client import docker_client
+from docker import Client
 
 import config
 import helper.backend_helper as BackendHelper
@@ -106,20 +107,18 @@ class Haproxy(object):
     @staticmethod
     def _init_swarm_mode_links():
         try:
-            try:
-                docker = docker_client()
-            except:
-                docker = docker_client(os.environ)
+            docker = Client(base_url = 'unix:///var/run/docker.sock')
+            swarm = Client(base_url = os.environ.get('DOCKER_MANAGER_URI'))
 
             docker.ping()
-
+            swarm.ping()
         except Exception as e:
             logger.info("Docker API error, regressing to legacy links mode: %s" % e)
             return None
         haproxy_container_id = os.environ.get("HOSTNAME", "")
         Haproxy.cls_service_id, Haproxy.cls_nets = SwarmModeLinkHelper.get_swarm_mode_haproxy_id_nets(docker,
                                                                                                       haproxy_container_id)
-        links, Haproxy.cls_linked_tasks = SwarmModeLinkHelper.get_swarm_mode_links(docker, Haproxy.cls_service_id,
+        links, Haproxy.cls_linked_tasks = SwarmModeLinkHelper.get_swarm_mode_links(swarm, Haproxy.cls_service_id,
                                                                                    Haproxy.cls_nets)
         logger.info("Linked service: %s", ", ".join(SwarmModeLinkHelper.get_service_links_str(links)))
         logger.info("Linked container: %s", ", ".join(SwarmModeLinkHelper.get_container_links_str(links)))
@@ -272,16 +271,32 @@ class Haproxy(object):
     def _config_stats_section():
         cfg = OrderedDict()
         bind = " ".join([STATS_PORT, EXTRA_BIND_SETTINGS.get(STATS_PORT, "")])
-        cfg["listen stats"] = ["bind :%s" % bind.strip(),
-                               "mode http",
-                               "stats enable",
-                               "timeout connect 10s",
-                               "timeout client 1m",
-                               "timeout server 1m",
-                               "stats hide-version",
-                               "stats realm Haproxy\ Statistics",
-                               "stats uri /",
-                               "stats auth %s" % STATS_AUTH]
+
+        if NBPROC > 1:
+            for x in range(1, NBPROC + 1):
+                cfg["listen stats%d" % x] = ["bind :%s%d" % (bind.strip(), x),
+                                       "mode http",
+                                       "stats enable",
+                                       "timeout connect 10s",
+                                       "timeout client 1m",
+                                       "timeout server 1m",
+                                       "stats hide-version",
+                                       "stats realm Haproxy\ Statistics",
+                                       "stats uri /",
+                                       "bind-process %d" % x,
+                                       "stats auth %s" % STATS_AUTH]
+        else:
+            cfg["listen stats"] = ["bind :%s" % bind.strip(),
+                                   "mode http",
+                                   "stats enable",
+                                   "timeout connect 10s",
+                                   "timeout client 1m",
+                                   "timeout server 1m",
+                                   "stats hide-version",
+                                   "stats realm Haproxy\ Statistics",
+                                   "stats uri /",
+                                   "stats auth %s" % STATS_AUTH]
+
         return cfg
 
     @staticmethod

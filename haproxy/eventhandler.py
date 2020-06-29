@@ -6,6 +6,7 @@ import time
 import dockercloud
 from compose.cli.docker_client import docker_client
 from docker.errors import APIError
+from docker import Client
 
 import config
 import helper.cloud_mode_link_helper
@@ -102,13 +103,10 @@ def polling_service_status_swarm_mode():
     while True:
         time.sleep(config.SWARM_MODE_POLLING_INTERVAL)
         try:
-            try:
-                docker = docker_client()
-            except:
-                docker = docker_client(os.environ)
+            swarm = Client(base_url = os.environ.get('DOCKER_MANAGER_URI'))
 
-            services = docker.services()
-            tasks = docker.tasks(filters={"desired-state": "running"})
+            services = swarm.services()
+            tasks = swarm.tasks(filters={"desired-state": "running"})
             _, linked_tasks = SwarmModeLinkHelper.get_task_links(tasks, services, Haproxy.cls_service_id,
                                                                  Haproxy.cls_nets)
             if cmp(Haproxy.cls_linked_tasks, linked_tasks) != 0:
