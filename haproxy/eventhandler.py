@@ -111,5 +111,7 @@ def polling_service_status_swarm_mode():
                                                                  Haproxy.cls_nets)
             if cmp(Haproxy.cls_linked_tasks, linked_tasks) != 0:
                 add_haproxy_run_task("Tasks are updated")
+        except ConnectionError as e:
+            logger.info("Generic connection error: %s" % e)
         except APIError as e:
             logger.info("Docker API error: %s" % e)
